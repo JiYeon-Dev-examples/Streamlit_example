@@ -15,6 +15,60 @@ us_states = [
     "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
 ]
 
+# 미국 주 전체 이름 매핑
+state_names = {
+    "AL": "Alabama",
+    "AK": "Alaska",
+    "AZ": "Arizona",
+    "AR": "Arkansas",
+    "CA": "California",
+    "CO": "Colorado",
+    "CT": "Connecticut",
+    "DE": "Delaware",
+    "FL": "Florida",
+    "GA": "Georgia",
+    "HI": "Hawaii",
+    "ID": "Idaho",
+    "IL": "Illinois",
+    "IN": "Indiana",
+    "IA": "Iowa",
+    "KS": "Kansas",
+    "KY": "Kentucky",
+    "LA": "Louisiana",
+    "ME": "Maine",
+    "MD": "Maryland",
+    "MA": "Massachusetts",
+    "MI": "Michigan",
+    "MN": "Minnesota",
+    "MS": "Mississippi",
+    "MO": "Missouri",
+    "MT": "Montana",
+    "NE": "Nebraska",
+    "NV": "Nevada",
+    "NH": "New Hampshire",
+    "NJ": "New Jersey",
+    "NM": "New Mexico",
+    "NY": "New York",
+    "NC": "North Carolina",
+    "ND": "North Dakota",
+    "OH": "Ohio",
+    "OK": "Oklahoma",
+    "OR": "Oregon",
+    "PA": "Pennsylvania",
+    "RI": "Rhode Island",
+    "SC": "South Carolina",
+    "SD": "South Dakota",
+    "TN": "Tennessee",
+    "TX": "Texas",
+    "UT": "Utah",
+    "VT": "Vermont",
+    "VA": "Virginia",
+    "WA": "Washington",
+    "WV": "West Virginia",
+    "WI": "Wisconsin",
+    "WY": "Wyoming"
+}
+
 # 지표별 한글 라벨 매핑
 metrics = {
     "completion_rate": "결제 완료율",
@@ -109,9 +163,14 @@ st.plotly_chart(fig, use_container_width=True)
 # ---------------------------------------
 # 6) 주 선택 드롭다운 및 월별 트렌드 그래프
 # ---------------------------------------
-selected_state = st.selectbox("월별 트렌드를 확인할 주를 선택하세요", us_states)
+# selectbox의 format_func를 이용해 "약어 (전체이름)" 형태로 표시
+selected_state = st.selectbox(
+    "월별 트렌드를 확인할 주를 선택하세요",
+    us_states,
+    format_func=lambda x: f"{x} ({state_names.get(x, '')})"
+)
 if selected_state:
-    st.write(f"**선택한 주: {selected_state}**")
+    st.write(f"**선택한 주: {selected_state} ({state_names.get(selected_state, '')})**")
     # 선택된 지표에 대해 1월~12월 컬럼명 생성
     monthly_cols = [f"{selected_metric}_{m}" for m in months]
     state_row = df.loc[df["state"] == selected_state, monthly_cols]
@@ -126,7 +185,7 @@ if selected_state:
             x="Month",
             y=selected_metric_kor,
             markers=True,
-            title=f"{selected_state} - {selected_metric_kor} 월별 트렌드"
+            title=f"{selected_state} ({state_names.get(selected_state, '')}) - {selected_metric_kor} 월별 트렌드"
         )
         trend_fig.update_xaxes(categoryorder='array', categoryarray=months)
         st.plotly_chart(trend_fig, use_container_width=True)
