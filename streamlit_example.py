@@ -25,28 +25,38 @@ df = pd.DataFrame({
 # 페이지 타이틀
 st.title("미국 주별 KPI 대시보드")
 
-# 세션 스테이트를 활용해 버튼 클릭 시 지표 전환
-if 'metric_index' not in st.session_state:
-    st.session_state.metric_index = 0
+# 지표별 영문 키와 한글 라벨을 dict로 매핑
+metrics = {
+    "completion_rate": "결제 완료율",
+    "re_subscription_rate": "재결제율",
+    "ad_click_rate": "광고 클릭율"
+}
 
-metrics = ["completion_rate", "re_subscription_rate", "ad_click_rate"]
-metric_kor = ["결제 완료율", "재결제율", "광고 클릭율"]
+# 세션 스테이트에서 현재 선택된 지표 관리
+# 기본값으로 "completion_rate" 세팅
+if 'selected_metric' not in st.session_state:
+    st.session_state.selected_metric = 'completion_rate'
 
-def switch_metric():
-    st.session_state.metric_index = (st.session_state.metric_index + 1) % len(metrics)
+# 개별 버튼 클릭 시 해당 지표로 전환
+col1, col2, col3 = st.columns(3)
+with col1:
+    if st.button("결제 완료율"):
+        st.session_state.selected_metric = "completion_rate"
+with col2:
+    if st.button("재결제율"):
+        st.session_state.selected_metric = "re_subscription_rate"
+with col3:
+    if st.button("광고 클릭율"):
+        st.session_state.selected_metric = "ad_click_rate"
 
-# 전환 버튼
-if st.button("지표 전환"):
-    switch_metric()
-
-selected_metric = metrics[st.session_state.metric_index]
-selected_metric_kor = metric_kor[st.session_state.metric_index]
+# 현재 선택된 지표와 한글 라벨
+selected_metric = st.session_state.selected_metric
+selected_metric_kor = metrics[selected_metric]
 
 # 현재 지표 표시
 st.subheader(f"현재 지표: {selected_metric_kor}")
 
 # Choropleth 그리기
-# locationmode="USA-states", scope="usa"를 사용해야 미국 지도에 제대로 표시됩니다.
 fig = px.choropleth(
     df,
     locations='state',
