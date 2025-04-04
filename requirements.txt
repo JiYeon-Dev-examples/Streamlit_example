@@ -1,2 +1,5 @@
 streamlit
 plotly
+streamlit-plotly-events
+pandas
+numpy
