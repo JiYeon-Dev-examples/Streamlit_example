@@ -4,7 +4,6 @@
 # In[ ]:
 
 
-import pythoncom
 import datetime
 import re
 import requests
@@ -160,115 +159,122 @@ def render_section(header, emoji, arts, hide_summary=False):
         )
     return "\n".join(parts)
 
-def send_daily_mail():
-    # 1) COM 라이브러리 초기화
-    pythoncom.CoInitialize()
-    try:
-        # 2) 메일 제목 설정
-        now      = datetime.datetime.now()
-        date_str = now.strftime("%Y-%m-%d")
-        subject  = f"Daily Gaming & Industry News ({date_str})"
+def send_weekly_mail():
+    now     = datetime.datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    subject = f"Daily Gaming & Industry News ({date_str})"
 
-        # 3) HTML 본문 구성
-        banner_html = f'''
-        <table cellpadding="0" cellspacing="0" border="0"
-               style="width:1200px; margin:0 0 1em 0; font-family:Calibri;">
-          <tr style="background-color:#000; color:#fff;">
-            <td style="padding:8px 12px; font-size:1.2em; font-weight:bold; text-align:left;">
-              DAILY GAMING &amp; INDUSTRY NEWS
-            </td>
-            <td style="padding:8px 12px; font-size:1em; text-align:right;">
-              {date_str}
-            </td>
-          </tr>
-        </table>
-        '''
-        html_parts = [banner_html, '<div style="font-family:Calibri;">']
+    # 배너
+    banner_html = f'''
+    <table cellpadding="0" cellspacing="0" border="0"
+           style="width:1200px; margin:0 0 1em 0; font-family:Calibri;">
+      <tr style="background-color:#000; color:#fff;">
+        <td style="padding:8px 12px; font-size:1.2em; font-weight:bold; text-align:left;">
+          DAILY GAMING &amp; INDUSTRY NEWS
+        </td>
+        <td style="padding:8px 12px; font-size:1em; text-align:right;">
+          {date_str}
+        </td>
+      </tr>
+    </table>
+    '''
+    html_parts = [banner_html, '<div style="font-family:Calibri;">']
 
-        # 국내 뉴스
-        ruli = fetch_ruliweb_articles(5)
-        html_parts.append(render_section("Weekly News Highlights: 국내", "🏠", ruli))
-
-        # 해외 뉴스
-        html_parts.append('<hr style="border:none; border-top:1px solid #ccc; margin:2em 0;">')
-        html_parts.append('<div style="margin-left:2em;">')
-        for title, emoji, slug in [
-            ("Playstation/Xbox/PC Gaming", "🎮", "playstation"),
-            ("Nintendo",               "🍄", "nintendo"),
-            ("Mobile",                 "📱", "mobile")
-        ]:
-            arts = fetch_vgc_platform_articles(slug, top_n=2)
-            html_parts.append(render_section(title, emoji, arts))
-        html_parts.append('</div>')
-
-        # SteamDB 차트
-        html_parts.append('<hr style="border:none; border-top:1px solid #ccc; margin:2em 0;">')
-        html_parts.append('<div style="margin-left:2em;">')
-        # Global Top Sellers
+    # 국내 뉴스
+    ruli = fetch_ruliweb_articles(5)
+    html_parts.append(
+        '<h2 style="font-family:Calibri; font-size:1.4em; '
+        'font-weight:bold; margin-bottom:0.5em;">'
+        'Weekly News Highlights: 국내</h2>'
+    )
+    for art in ruli:
         html_parts.append(
-            '<h2 style="font-family:Calibri; font-size:1.4em; '
-            'font-weight:bold; margin-bottom:0.5em;">📈 Steam Sales Trend</h2>'
-        )
-        html_parts.append(to_html_table(fetch_global_topsellers(5), ["Rank", "Title"]))
-        
-        # Popular Upcoming
-        html_parts.append(
-            '<h2 style="font-family:Calibri; font-size:1.4em; '
-            'font-weight:bold; margin-top:1em; margin-bottom:0.5em;">🔜 Popular Upcoming</h2>'
-        )
-        html_parts.append(to_html_table(fetch_popular_upcoming(5), ["Title", "Release"]))
-        html_parts.append('</div>')
-
-        # Upcoming Game Releases
-        html_parts.append('<hr style="border:none; border-top:1px solid #ccc; margin:2em 0;">')
-        html_parts.append(
-            '<h2 style="font-family:Calibri; font-size:1.4em; '
-            'font-weight:bold; margin-top:1em; margin-bottom:0.5em;">'
-            '🆕 Upcoming Game Releases</h2>'
+            f'<h3 style="font-family:\'Malgun Gothic\',sans-serif; '
+            f'font-size:1em; font-weight:bold; color:#196F92; '
+            f'margin:0.2em 0;">· {art["title"]}</h3>'
         )
         html_parts.append(
-            '<p style="font-family:\'Malgun Gothic\',sans-serif; '
-            'font-size:0.8em; margin:0 0 0.5em 2em; font-style:italic;">'
-            '* 해당 내용은 루리웹 안민균 기자님의 월별 신작 소개 기사에서 발췌하였습니다.'
-            '</p>'
+            f'<p style="font-family:\'Malgun Gothic\',sans-serif; '
+            f'font-size:0.9em; margin:0 0 1em 1.5em;">'
+            f'<a href="{art["link"]}" style="text-decoration:underline;">'
+            f'자세히 보기 →</a></p>'
         )
-        df_up = fetch_upcoming_releases_df("https://bbs.ruliweb.com/news/read/210211")
-        html_parts.append(to_html_table(
-            df_up.to_dict("records"),
-            ["발매일","게임명","플랫폼","장르","한국어 지원 여부"]
-        ))
 
-        html_parts.append('</div>')
-        html_body = "\n".join(html_parts)
+    # 해외 뉴스
+    html_parts.append('<hr style="border:none; border-top:1px solid #ccc; margin:2em 0;">')
+    html_parts.append(
+        '<h2 style="font-family:Calibri; font-size:1.4em; '
+        'font-weight:bold; margin-bottom:0.5em;">'
+        'Weekly News Highlights: 해외</h2>'
+    )
+    html_parts.append('<div style="margin-left:2em;">')
+    for title, emoji, slug in [
+        ("Playstation/Xbox/PC Gaming", "🎮", "playstation"),
+        ("Nintendo",               "🍄", "nintendo"),
+        ("Mobile",                 "📱", "mobile")
+    ]:
+        html_parts.append(render_section(title, emoji, fetch_vgc_platform_articles(slug,2)))
+    html_parts.append('</div>')
 
-        # 4) Outlook 메일 발송
-        outlook = win32.Dispatch("Outlook.Application")
-        mail    = outlook.CreateItem(0)
-        mail.To       = "claireryu@nexon.co.kr; castle181@naver.com"
-        mail.Subject  = subject
-        mail.HTMLBody = html_body
-        mail.Send()
+    # SteamDB 차트
+    html_parts.append('<hr style="border:none; border-top:1px solid #ccc; margin:2em 0;">')
+    html_parts.append('<div style="margin-left:2em;">')
+    html_parts.append(
+        '<h2 style="font-family:Calibri; font-size:1.4em; '
+        'font-weight:bold; margin-bottom:0.5em;">Steam Sales Trend</h2>'
+    )
+    html_parts.append('<div style="margin-left:2em;">')
+    html_parts.append(to_html_table(fetch_global_topsellers(5), ["Rank","Title"]))
+    html_parts.append(to_html_table(fetch_popular_upcoming(5), ["Title","Release"]))
+    html_parts.append('</div></div>')
 
-    finally:
-        # 5) COM 라이브러리 해제
-        pythoncom.CoUninitialize()
+    # Upcoming Game Releases
+    html_parts.append('<hr style="border:none; border-top:1px solid #ccc; margin:2em 0;">')
+    html_parts.append(
+        '<h2 style="font-family:Calibri; font-size:1.4em; '
+        'font-weight:bold; margin-top:1em; margin-bottom:0.5em;">'
+        '🆕 Upcoming Game Releases on May</h2>'
+    )
+    html_parts.append(
+        '<p style="font-family:\'Malgun Gothic\',sans-serif; '
+        'font-size:0.8em; margin:0 0 0.5em 2em; font-style:italic;">'
+        '* 해당 내용은 루리웹 안민균 기자님의 월별 신작 소개 기사에서 발췌하였습니다.'
+        '</p>'
+    )
+    df_up = fetch_upcoming_releases_df("https://bbs.ruliweb.com/news/read/210211")
+    html_parts.append(to_html_table(
+        df_up.to_dict("records"),
+        ["발매일","게임명","플랫폼","장르","한국어 지원 여부"]
+    ))
+    html_parts.append('<hr style="border:none; border-top:1px solid #ccc; margin:2em 0;">')
 
+    html_parts.append('</div>')
+    html_body = "\n".join(html_parts)
 
-# ————————————— FastAPI + 스케줄러 설정 —————————————
+    outlook = win32.Dispatch("Outlook.Application")
+    mail    = outlook.CreateItem(0)
+    mail.To       = "claireryu@nexon.co.kr; castle181@naver.com"
+    mail.Subject  = subject
+    mail.HTMLBody = html_body
+    mail.Send()
+
 app = FastAPI()
 scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
 
 @app.on_event("startup")
 async def start_scheduler():
-    # 매일 9시 30분에 send_daily_mail 실행
-    scheduler.add_job(send_daily_mail, 'cron', hour=9, minute=55)
+    scheduler.add_job(
+        send_weekly_mail, 'cron', 
+        day_of_week='mon',
+        hour=9, 
+        minute=20
+    )
     scheduler.start()
-    print("✅ Scheduler started: will send mail daily at 09:55 Asia/Seoul")
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
 # Run with:
-#   uvicorn main:app --reload
+# uvicorn main:app --reload
 
