@@ -4,20 +4,24 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# 1) 날짜·라벨 --------------------------------------------------------------
+# --------------------------------------------------
+# 1) 날짜·라벨 (2024-01 ~ 2025-06, 18개월)
+# --------------------------------------------------
 periods       = pd.period_range("2024-01", "2025-06", freq="M")
 month_keys    = [p.strftime("%Y_%m") for p in periods]
 month_labels  = [f"{p.year}년 {p.month}월" for p in periods]
 label_to_key  = dict(zip(month_labels, month_keys))
 
-# 2) 주·지표·샘플 데이터 ------------------------------------------------------
+# --------------------------------------------------
+# 2) 주·지표·샘플 데이터
+# --------------------------------------------------
 us_states = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
              "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
              "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
              "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
              "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"]
 
-state_names = {  # 50주 + DC
+state_names = {
     "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas",
     "CA":"California","CO":"Colorado","CT":"Connecticut","DE":"Delaware",
     "FL":"Florida","GA":"Georgia","HI":"Hawaii","ID":"Idaho",
@@ -49,17 +53,23 @@ for m in metrics:
             df[col] = np.random.uniform(70, 100, len(us_states))
         elif m == "re_subscription_rate":
             df[col] = np.random.uniform(20, 60, len(us_states))
-        else:  # ad_click_rate
-            df[col] = np.random.uniform(0.5, 5, len(us_states))  # 0.5 %-5 %
+        else:
+            df[col] = np.random.uniform(0.5, 5, len(us_states))   # 0.5 % ~ 5 %
+# 주 전체 이름 컬럼 추가 (호버용)
+df["state_full"] = df["state"].map(state_names)
 
-# 3) 레이아웃 ---------------------------------------------------------------
+# --------------------------------------------------
+# 3) 레이아웃 & 세션
+# --------------------------------------------------
 st.set_page_config(layout="wide")
 st.title("미국 주별 KPI 대시보드")
 st.session_state.setdefault("selected_metric", "completion_rate")
 st.session_state.setdefault("selected_month_label", month_labels[0])
 
-# 4) 지표 버튼 (왼쪽 정렬, 간격 최소)
-bcols = st.columns([0.12, 0.12, 0.12, 0.64])  # 마지막은 빈 여백
+# --------------------------------------------------
+# 4) 지표 버튼 (왼쪽 정렬)
+# --------------------------------------------------
+bcols = st.columns([0.12, 0.12, 0.12, 0.64])
 if bcols[0].button(metrics["completion_rate"]):
     st.session_state.selected_metric = "completion_rate"
 if bcols[1].button(metrics["re_subscription_rate"]):
@@ -67,7 +77,9 @@ if bcols[1].button(metrics["re_subscription_rate"]):
 if bcols[2].button(metrics["ad_click_rate"]):
     st.session_state.selected_metric = "ad_click_rate"
 
-# 5) 월 버튼 (9×2 그리드)
+# --------------------------------------------------
+# 5) 월 버튼 (9 × 2 그리드)
+# --------------------------------------------------
 st.markdown("#### 월 선택")
 rows = [st.columns(9) for _ in range(2)]
 for i, lab in enumerate(month_labels):
@@ -77,10 +89,12 @@ for i, lab in enumerate(month_labels):
             st.session_state.selected_month_label = lab
 
 selected_month_key = label_to_key[st.session_state.selected_month_label]
-metric_kor = metrics[st.session_state.selected_metric]
+metric_kor         = metrics[st.session_state.selected_metric]
 st.subheader(f"현재 지표: {metric_kor}, 선택 월: {st.session_state.selected_month_label}")
 
-# 6) Choropleth --------------------------------------------------------------
+# --------------------------------------------------
+# 6) Choropleth (풀네임 호버)
+# --------------------------------------------------
 map_col = f"{st.session_state.selected_metric}_{selected_month_key}"
 fig = px.choropleth(
     df,
@@ -90,10 +104,13 @@ fig = px.choropleth(
     scope="usa",
     color_continuous_scale="Blues",
     labels={map_col: f"{metric_kor} (%)"},
-    hover_data=None,   # 기본 hover 비활성 → hovertemplate로 대체
+    hover_data=None,            # 기본 hover 제거
 )
+# customdata: [전체이름, 값]
 fig.update_traces(
-    hovertemplate=f"<b>%{{location}}</b><br>{metric_kor} = %{{z:.2f}}%<extra></extra>"
+    customdata=np.stack((df["state_full"], df[map_col]), axis=-1),
+    hovertemplate="<b>%{customdata[0]}</b><br>"
+                  f"{metric_kor} = %{customdata[1]:.2f}%<extra></extra>"
 )
 fig.update_layout(
     margin=dict(r=0, t=0, l=0, b=0),
@@ -101,11 +118,13 @@ fig.update_layout(
     geo=dict(bgcolor='rgba(0,0,0,0)')
 )
 
-# 7) 주 선택 & 강조 ----------------------------------------------------------
+# --------------------------------------------------
+# 7) 주 선택 & 강조
+# --------------------------------------------------
 selected_state = st.selectbox(
     "월별 트렌드를 확인할 주를 선택하세요",
     us_states,
-    format_func=lambda x: f"{x} ({state_names.get(x,'')})"
+    format_func=lambda x: f"{x} ({state_names.get(x, '')})"
 )
 
 if selected_state:
@@ -123,7 +142,9 @@ if selected_state:
 
 st.plotly_chart(fig, use_container_width=True)
 
-# 8) 월별 트렌드 -------------------------------------------------------------
+# --------------------------------------------------
+# 8) 월별 트렌드
+# --------------------------------------------------
 if selected_state:
     month_cols = [f"{st.session_state.selected_metric}_{mk}" for mk in month_keys]
     vals = df.loc[df["state"] == selected_state, month_cols].values.flatten()
@@ -133,17 +154,19 @@ if selected_state:
         x="Month",
         y=metric_kor,
         markers=True,
-        title=f"{selected_state} - {metric_kor} 월별 트렌드",
+        title=f"{selected_state} ({state_names[selected_state]}) - {metric_kor} 월별 트렌드",
         labels={metric_kor: f"{metric_kor} (%)"}
     )
     trend_fig.update_xaxes(categoryorder="array", categoryarray=month_labels)
     trend_fig.update_yaxes(ticksuffix="%", tickformat=".2f")
     trend_fig.update_traces(
-        hovertemplate=f"%{{x}}<br>{metric_kor} = %{{y:.2f}}%<extra></extra>"
+        hovertemplate="%{x}<br>" + f"{metric_kor} = %{y:.2f}%<extra></extra>"
     )
     st.plotly_chart(trend_fig, use_container_width=True)
 
-# 9) CSS – 버튼 간격 최소화 ---------------------------------------------------
+# --------------------------------------------------
+# 9) CSS – 버튼 여백 최소화
+# --------------------------------------------------
 st.markdown(
     """
     <style>
