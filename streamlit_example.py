@@ -129,6 +129,7 @@ selected_state = st.selectbox(
     format_func=lambda x: f"{x} ({state_names.get(x, '')})"
 )
 
+# --- 선택 주 강조 (hover 끄기) ---
 if selected_state:
     fig.add_trace(
         go.Choropleth(
@@ -138,7 +139,8 @@ if selected_state:
             showscale=False,
             colorscale=[[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0)"]],
             marker_line_color="#c40028",
-            marker_line_width=1.5
+            marker_line_width=1.5,
+            hoverinfo="skip"        # ← 말풍선 비활성화
         )
     )
 
