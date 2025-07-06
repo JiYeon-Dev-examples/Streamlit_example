@@ -55,8 +55,8 @@ for m in metrics:
             df[col] = np.random.uniform(20, 60, len(us_states))
         else:
             df[col] = np.random.uniform(0.5, 5, len(us_states))   # 0.5 % ~ 5 %
-# 주 전체 이름 컬럼 추가 (호버용)
-df["state_full"] = df["state"].map(state_names)
+
+df["state_full"] = df["state"].map(state_names)  # 풀네임 컬럼
 
 # --------------------------------------------------
 # 3) 레이아웃 & 세션
@@ -78,7 +78,7 @@ if bcols[2].button(metrics["ad_click_rate"]):
     st.session_state.selected_metric = "ad_click_rate"
 
 # --------------------------------------------------
-# 5) 월 버튼 (9 × 2 그리드)
+# 5) 월 버튼 (9 × 2)
 # --------------------------------------------------
 st.markdown("#### 월 선택")
 rows = [st.columns(9) for _ in range(2)]
@@ -93,7 +93,7 @@ metric_kor         = metrics[st.session_state.selected_metric]
 st.subheader(f"현재 지표: {metric_kor}, 선택 월: {st.session_state.selected_month_label}")
 
 # --------------------------------------------------
-# 6) Choropleth (풀네임 호버)
+# 6) Choropleth (hover에 풀네임 표시)
 # --------------------------------------------------
 map_col = f"{st.session_state.selected_metric}_{selected_month_key}"
 fig = px.choropleth(
@@ -104,13 +104,14 @@ fig = px.choropleth(
     scope="usa",
     color_continuous_scale="Blues",
     labels={map_col: f"{metric_kor} (%)"},
-    hover_data=None,            # 기본 hover 제거
+    hover_data=None,
 )
-# customdata: [전체이름, 값]
 fig.update_traces(
     customdata=np.stack((df["state_full"], df[map_col]), axis=-1),
-    hovertemplate="<b>%{customdata[0]}</b><br>"
-                  f"{metric_kor} = %{customdata[1]:.2f}%<extra></extra>"
+    hovertemplate=(
+        "<b>%{{customdata[0]}}</b><br>"
+        f"{metric_kor} = %{{customdata[1]:.2f}}%<extra></extra>"
+    )
 )
 fig.update_layout(
     margin=dict(r=0, t=0, l=0, b=0),
@@ -160,7 +161,10 @@ if selected_state:
     trend_fig.update_xaxes(categoryorder="array", categoryarray=month_labels)
     trend_fig.update_yaxes(ticksuffix="%", tickformat=".2f")
     trend_fig.update_traces(
-        hovertemplate="%{x}<br>" + f"{metric_kor} = %{y:.2f}%<extra></extra>"
+        hovertemplate=(
+            "%{x}<br>"
+            f"{metric_kor} = %{{y:.2f}}%<extra></extra>"
+        )
     )
     st.plotly_chart(trend_fig, use_container_width=True)
 
