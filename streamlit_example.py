@@ -5,24 +5,18 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 
-# --------------------------------------------------
-# 1) 날짜·라벨 (2024-01 ~ 2025-06, 18개월)
-# --------------------------------------------------
+# 1) 날짜·라벨 --------------------------------------------------------------
 periods       = pd.period_range("2024-01", "2025-06", freq="M")
-month_keys    = [p.strftime("%Y_%m") for p in periods]              # 내부 컬럼용
-month_labels  = [f"{p.year}년 {p.month}월" for p in periods]        # 화면 표시용
+month_keys    = [p.strftime("%Y_%m") for p in periods]
+month_labels  = [f"{p.year}년 {p.month}월" for p in periods]
 label_to_key  = dict(zip(month_labels, month_keys))
 
-# --------------------------------------------------
-# 2) 주/이름, 지표, 샘플 데이터
-# --------------------------------------------------
-us_states = [
-    "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
-    "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
-    "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
-    "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
-    "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
-]
+# 2) 주/지표/샘플 데이터 ------------------------------------------------------
+us_states = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+             "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+             "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+             "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+             "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"]
 
 state_names = {
     "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas",
@@ -46,121 +40,86 @@ metrics = {
     "ad_click_rate":        "광고 클릭율"
 }
 
-# 샘플 데이터
 np.random.seed(42)
 df = pd.DataFrame({"state": us_states})
-for metric in metrics:
+for m in metrics:
     for mk in month_keys:
-        if metric == "completion_rate":
-            df[f"{metric}_{mk}"] = np.random.uniform(70, 100, len(us_states))
-        elif metric == "re_subscription_rate":
-            df[f"{metric}_{mk}"] = np.random.uniform(20, 60, len(us_states))
+        col = f"{m}_{mk}"
+        if m == "completion_rate":
+            df[col] = np.random.uniform(70, 100, len(us_states))
+        elif m == "re_subscription_rate":
+            df[col] = np.random.uniform(20, 60, len(us_states))
         else:
-            df[f"{metric}_{mk}"] = np.random.uniform(0.5, 5, len(us_states))
+            df[col] = np.random.uniform(0.5, 5, len(us_states))
 
-# --------------------------------------------------
-# 3) 기본 레이아웃 & 세션
-# --------------------------------------------------
+# 3) 기본 레이아웃 -----------------------------------------------------------
 st.set_page_config(layout="wide")
 st.title("미국 주별 KPI 대시보드")
-
 st.session_state.setdefault("selected_metric", "completion_rate")
 st.session_state.setdefault("selected_month_label", month_labels[0])
 
-# --------------------------------------------------
-# 4) 지표 선택 버튼
-# --------------------------------------------------
+# 4) 지표 버튼 ---------------------------------------------------------------
 metric_cols = st.columns(3)
 for col, (m_key, m_kor) in zip(metric_cols, metrics.items()):
     if col.button(m_kor):
         st.session_state.selected_metric = m_key
 
-# --------------------------------------------------
-# 5) 월 선택 – 9 × 2 그리드
-# --------------------------------------------------
+# 5) 월 버튼 (9×2) -----------------------------------------------------------
 st.markdown("#### 월 선택")
-grid_rows = [st.columns(9) for _ in range(2)]       # 18개월 → 2행 9열
-for i, label in enumerate(month_labels):
+grid_rows = [st.columns(9) for _ in range(2)]
+for i, lab in enumerate(month_labels):
     r, c = divmod(i, 9)
     with grid_rows[r][c]:
-        if st.button(label, key=f"m_{i}"):
-            st.session_state.selected_month_label = label
+        if st.button(lab, key=f"m_{i}"):
+            st.session_state.selected_month_label = lab
 selected_month_key = label_to_key[st.session_state.selected_month_label]
-metric_kor         = metrics[st.session_state.selected_metric]
-
+metric_kor = metrics[st.session_state.selected_metric]
 st.subheader(f"현재 지표: {metric_kor}, 선택 월: {st.session_state.selected_month_label}")
 
-# --------------------------------------------------
-# 6) Choropleth 지도
-# --------------------------------------------------
+# 6) Choropleth --------------------------------------------------------------
 map_col = f"{st.session_state.selected_metric}_{selected_month_key}"
 fig = px.choropleth(
-    df,
-    locations="state",
-    locationmode="USA-states",
-    color=map_col,
-    scope="usa",
-    color_continuous_scale="Blues",
-    labels={map_col: metric_kor},
-    hover_data=["state", map_col],
+    df, locations="state", locationmode="USA-states",
+    color=map_col, scope="usa", color_continuous_scale="Blues",
+    labels={map_col: metric_kor}, hover_data=["state", map_col],
 )
 fig.update_layout(margin=dict(r=0,t=0,l=0,b=0),
                   geo=dict(bgcolor='rgba(0,0,0,0)'))
 
-# --------------------------------------------------
-# 7) 주 선택 & 강조 + 트렌드
-# --------------------------------------------------
+# 7) 주 선택 & 강조 ----------------------------------------------------------
 selected_state = st.selectbox(
     "월별 트렌드를 확인할 주를 선택하세요",
     us_states,
     format_func=lambda x: f"{x} ({state_names.get(x,'')})"
 )
 
-# --- 선택 주: 투명 채우기 + 얇은 ‘점선’ 테두리 ---
 if selected_state:
     fig.add_trace(
         go.Choropleth(
-            locations=[selected_state],
-            locationmode="USA-states",
-            z=[0],                                # 실제 값 불필요
-            showscale=False,
-            colorscale=[[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0)"]],
-            marker_line_color="#c40028",          # 테두리 색
-            marker_line_width=1.5,                # 더 얇게
-            marker_line_dash="dash"               # 점선
+            locations=[selected_state], locationmode="USA-states",
+            z=[0], showscale=False,
+            colorscale=[[0,"rgba(0,0,0,0)"],[1,"rgba(0,0,0,0)"]],
+            marker_line_color="#c40028",  # 테두리 색
+            marker_line_width=1.5         # 얇은 실선
         )
     )
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- 월별 트렌드 ---
+# -- 트렌드 라인 --
 if selected_state:
-    st.write(f"**선택한 주: {selected_state} ({state_names.get(selected_state,'')})**")
+    st.write(f"**선택한 주: {selected_state} ({state_names[selected_state]})**")
     month_cols = [f"{st.session_state.selected_metric}_{mk}" for mk in month_keys]
-    row = df.loc[df["state"] == selected_state, month_cols]
-    if not row.empty:
-        trend_df = pd.DataFrame({
-            "Month": month_labels,
-            metric_kor: row.values.flatten()
-        })
-        trend_fig = px.line(
-            trend_df, x="Month", y=metric_kor, markers=True,
-            title=f"{selected_state} ({state_names[selected_state]}) - {metric_kor} 월별 트렌드"
-        )
-        trend_fig.update_xaxes(categoryorder="array", categoryarray=month_labels)
-        st.plotly_chart(trend_fig, use_container_width=True)
+    vals = df.loc[df["state"] == selected_state, month_cols].values.flatten()
+    trend_df = pd.DataFrame({"Month": month_labels, metric_kor: vals})
+    trend_fig = px.line(trend_df, x="Month", y=metric_kor, markers=True,
+                        title=f"{selected_state} - {metric_kor} 월별 트렌드")
+    trend_fig.update_xaxes(categoryorder="array", categoryarray=month_labels)
+    st.plotly_chart(trend_fig, use_container_width=True)
 
-# --------------------------------------------------
-# 8) CSS – 버튼 간격 최소화
-# --------------------------------------------------
-st.markdown(
-    """
-    <style>
-    button[kind="primary"]{
-        margin:2px 4px 2px 0 !important;
-        padding:4px 6px !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# 8) 버튼 여백 최소화 ---------------------------------------------------------
+st.markdown("""
+<style>
+button[kind="primary"]{margin:2px 4px 2px 0 !important;padding:4px 6px !important;}
+</style>
+""", unsafe_allow_html=True)
