@@ -109,10 +109,11 @@ fig = px.choropleth(
 fig.update_traces(
     customdata=np.stack((df["state_full"], df[map_col]), axis=-1),
     hovertemplate=(
-        "<b>%{{customdata[0]}}</b><br>"
-        f"{metric_kor} = %{{customdata[1]:.2f}}%<extra></extra>"
+        "<b>%{customdata[0]}</b><br>"                     # 주 전체 이름
+        f"{metric_kor} = %{{customdata[1]:.2f}}%<extra></extra>"  # 값(소수 2자리) + %
     )
 )
+
 fig.update_layout(
     margin=dict(r=0, t=0, l=0, b=0),
     coloraxis_colorbar=dict(ticksuffix="%", tickformat=".2f"),
