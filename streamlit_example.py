@@ -40,7 +40,7 @@ metrics = {
     "ad_click_rate":        "광고 클릭율"
 }
 
-# 샘플 데이터 생성
+# 샘플 데이터
 np.random.seed(42)
 df = pd.DataFrame({"state": us_states})
 for m in metrics:
@@ -50,10 +50,10 @@ for m in metrics:
             df[col] = np.random.uniform(70, 100, len(us_states))
         elif m == "re_subscription_rate":
             df[col] = np.random.uniform(20, 60, len(us_states))
-        else:
-            df[col] = np.random.uniform(0.5, 5, len(us_states))
+        else:  # ad_click_rate
+            df[col] = np.random.uniform(0.5, 5, len(us_states))  # 0.5% ~ 5%
 
-# 3) 기본 레이아웃 -----------------------------------------------------------
+# 3) 레이아웃 ---------------------------------------------------------------
 st.set_page_config(layout="wide")
 st.title("미국 주별 KPI 대시보드")
 st.session_state.setdefault("selected_metric", "completion_rate")
@@ -67,10 +67,10 @@ for col, (m_key, m_kor) in zip(metric_cols, metrics.items()):
 
 # 5) 월 선택 (9×2 그리드) -----------------------------------------------------
 st.markdown("#### 월 선택")
-row_cols = [st.columns(9) for _ in range(2)]
+rows = [st.columns(9) for _ in range(2)]
 for i, lab in enumerate(month_labels):
     r, c = divmod(i, 9)
-    with row_cols[r][c]:
+    with rows[r][c]:
         if st.button(lab, key=f"m_{i}"):
             st.session_state.selected_month_label = lab
 
@@ -88,9 +88,8 @@ fig = px.choropleth(
 fig.update_layout(margin=dict(r=0,t=0,l=0,b=0),
                   geo=dict(bgcolor='rgba(0,0,0,0)'))
 
-# 지표가 퍼센트면 컬러바에 % 표시
-if st.session_state.selected_metric in ["completion_rate", "re_subscription_rate"]:
-    fig.update_layout(coloraxis_colorbar=dict(ticksuffix="%"))
+# → 모든 지표에 % 붙이도록 변경
+fig.update_layout(coloraxis_colorbar=dict(ticksuffix="%"))
 
 # 7) 주 선택 & 강조 ----------------------------------------------------------
 selected_state = st.selectbox(
@@ -122,13 +121,12 @@ if selected_state:
                         title=f"{selected_state} - {metric_kor} 월별 트렌드")
     trend_fig.update_xaxes(categoryorder="array", categoryarray=month_labels)
 
-    # y축에 % 붙이기 (ad_click_rate 제외)
-    if st.session_state.selected_metric in ["completion_rate", "re_subscription_rate"]:
-        trend_fig.update_yaxes(ticksuffix="%")
+    # → 모든 지표 y축에 % 붙이기
+    trend_fig.update_yaxes(ticksuffix="%")
 
     st.plotly_chart(trend_fig, use_container_width=True)
 
-# 9) 버튼 여백 최소화 CSS ------------------------------------------------------
+# 9) CSS – 버튼 여백 최소화 ---------------------------------------------------
 st.markdown("""
 <style>
 button[kind="primary"]{margin:2px 4px 2px 0 !important;padding:4px 6px !important;}
