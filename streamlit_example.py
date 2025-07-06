@@ -11,14 +11,14 @@ month_keys    = [p.strftime("%Y_%m") for p in periods]
 month_labels  = [f"{p.year}년 {p.month}월" for p in periods]
 label_to_key  = dict(zip(month_labels, month_keys))
 
-# 2) 주/지표/샘플 데이터 ------------------------------------------------------
+# 2) 주·지표·샘플 데이터 ------------------------------------------------------
 us_states = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
              "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
              "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
              "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
              "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"]
 
-state_names = {
+state_names = {  # 50주 + DC
     "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas",
     "CA":"California","CO":"Colorado","CT":"Connecticut","DE":"Delaware",
     "FL":"Florida","GA":"Georgia","HI":"Hawaii","ID":"Idaho",
@@ -40,6 +40,7 @@ metrics = {
     "ad_click_rate":        "광고 클릭율"
 }
 
+# 샘플 데이터 생성
 np.random.seed(42)
 df = pd.DataFrame({"state": us_states})
 for m in metrics:
@@ -58,20 +59,21 @@ st.title("미국 주별 KPI 대시보드")
 st.session_state.setdefault("selected_metric", "completion_rate")
 st.session_state.setdefault("selected_month_label", month_labels[0])
 
-# 4) 지표 버튼 ---------------------------------------------------------------
+# 4) 지표 선택 ---------------------------------------------------------------
 metric_cols = st.columns(3)
 for col, (m_key, m_kor) in zip(metric_cols, metrics.items()):
     if col.button(m_kor):
         st.session_state.selected_metric = m_key
 
-# 5) 월 버튼 (9×2) -----------------------------------------------------------
+# 5) 월 선택 (9×2 그리드) -----------------------------------------------------
 st.markdown("#### 월 선택")
-grid_rows = [st.columns(9) for _ in range(2)]
+row_cols = [st.columns(9) for _ in range(2)]
 for i, lab in enumerate(month_labels):
     r, c = divmod(i, 9)
-    with grid_rows[r][c]:
+    with row_cols[r][c]:
         if st.button(lab, key=f"m_{i}"):
             st.session_state.selected_month_label = lab
+
 selected_month_key = label_to_key[st.session_state.selected_month_label]
 metric_kor = metrics[st.session_state.selected_metric]
 st.subheader(f"현재 지표: {metric_kor}, 선택 월: {st.session_state.selected_month_label}")
@@ -86,6 +88,10 @@ fig = px.choropleth(
 fig.update_layout(margin=dict(r=0,t=0,l=0,b=0),
                   geo=dict(bgcolor='rgba(0,0,0,0)'))
 
+# 지표가 퍼센트면 컬러바에 % 표시
+if st.session_state.selected_metric in ["completion_rate", "re_subscription_rate"]:
+    fig.update_layout(coloraxis_colorbar=dict(ticksuffix="%"))
+
 # 7) 주 선택 & 강조 ----------------------------------------------------------
 selected_state = st.selectbox(
     "월별 트렌드를 확인할 주를 선택하세요",
@@ -99,14 +105,14 @@ if selected_state:
             locations=[selected_state], locationmode="USA-states",
             z=[0], showscale=False,
             colorscale=[[0,"rgba(0,0,0,0)"],[1,"rgba(0,0,0,0)"]],
-            marker_line_color="#c40028",  # 테두리 색
-            marker_line_width=1.5         # 얇은 실선
+            marker_line_color="#c40028",
+            marker_line_width=1.5
         )
     )
 
 st.plotly_chart(fig, use_container_width=True)
 
-# -- 트렌드 라인 --
+# 8) 월별 트렌드 -------------------------------------------------------------
 if selected_state:
     st.write(f"**선택한 주: {selected_state} ({state_names[selected_state]})**")
     month_cols = [f"{st.session_state.selected_metric}_{mk}" for mk in month_keys]
@@ -115,9 +121,14 @@ if selected_state:
     trend_fig = px.line(trend_df, x="Month", y=metric_kor, markers=True,
                         title=f"{selected_state} - {metric_kor} 월별 트렌드")
     trend_fig.update_xaxes(categoryorder="array", categoryarray=month_labels)
+
+    # y축에 % 붙이기 (ad_click_rate 제외)
+    if st.session_state.selected_metric in ["completion_rate", "re_subscription_rate"]:
+        trend_fig.update_yaxes(ticksuffix="%")
+
     st.plotly_chart(trend_fig, use_container_width=True)
 
-# 8) 버튼 여백 최소화 ---------------------------------------------------------
+# 9) 버튼 여백 최소화 CSS ------------------------------------------------------
 st.markdown("""
 <style>
 button[kind="primary"]{margin:2px 4px 2px 0 !important;padding:4px 6px !important;}
